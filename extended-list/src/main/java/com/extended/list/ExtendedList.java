@@ -14,13 +14,6 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   private static final int                  ROOT_SIZE = 64;
 
   /**
-   * It serves for indicating the first undefined operation<br>
-   * It's used instead of <code>null</code>. In other case you can't put null in to array
-   */
-  @SuppressWarnings("unchecked")
-  private final T                           UNDEFINED = (T) new Object();
-
-  /**
    * The data array.
    */
   private final T[][]                       array;
@@ -39,7 +32,7 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   public ExtendedList() {
     array = (T[][]) new Object[ROOT_SIZE][];
     expandVersion = new AtomicInteger();
-    descriptor = new AtomicReference<Descriptor>(new Descriptor(0, UNDEFINED));
+    descriptor = new AtomicReference<Descriptor>(null);
   }
 
   /**
@@ -50,10 +43,8 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
    * @return counts of bits for the index of element
    */
   protected int getIndexOfBucket(int index) {
-    index = index + 2;
-
     // Get counts of used bits
-    int countOfUsedBits = 64 - Long.numberOfLeadingZeros(index);
+    int countOfUsedBits = 64 - Long.numberOfLeadingZeros(index + 2);
 
     // Get index of bucket
     return countOfUsedBits - 2;
@@ -86,112 +77,77 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   }
 
   @SuppressWarnings("unchecked")
-  protected void expandArray(int version, int bucket) {
+  protected void allocateBucket(int version, int bucket) {
     // Try to increase version of expanding array
     if (expandVersion.compareAndSet(version, version + 1))
       array[bucket] = (T[]) new Object[2 << bucket];
   }
 
-  protected void completeWrite(int indexOfElement, int expandVersion, Descriptor descriptor) {
-    // Try to find a bucket to put element
-    final int bucket = getIndexOfBucket(indexOfElement);
-    
-    // TODO if desc.pending == false == return
+  protected void completeWrite(WriteOperation<T> writeOperation, int expandVersion) {
+    if (writeOperation.pending) {
+      // Try to find a bucket to put element
+      final int bucket = getIndexOfBucket(writeOperation.indexOfElement);
 
-    // Add new bucket if it's needed
-    // TODO can be improved use park
-    while (array[bucket] == null)
-      expandArray(expandVersion, bucket);
+      // Add new bucket if it's needed
+      // TODO can be improved using park
+      while (array[bucket] == null)
+        allocateBucket(expandVersion, bucket);
 
-    final int indexInBucket = getIndexInBucket(bucket, indexOfElement);
+      final int indexInBucket = getIndexInBucket(bucket, writeOperation.indexOfElement);
 
-    // Add element
-    array[bucket][indexInBucket] = descriptor.element.get();
+      // Add element
+      array[bucket][indexInBucket] = writeOperation.element;
 
-    // Complete write
-    descriptor.pending = false;
+      // Complete write
+      writeOperation.pending = false;
+    }
   }
 
   @Override
   public boolean add(T element) {
+
+    // Initialize the first operation
+    while (descriptor.get() == null)
+      descriptor.compareAndSet(null, new Descriptor(0, new WriteOperation<T>(0, element)));
+
     Descriptor currentDescriptor;
-    Descriptor nextDescriptor;
-    int indexOfElement;
-    int version;
+    Descriptor operationDescriptor;
+    int currentExpandVersion = expandVersion.get();
 
     do {
-      // Get current version of expanding array TODO
-      version = expandVersion.get();
-
       currentDescriptor = descriptor.get();
 
-      // Set up the first element TODO optimize it
-      if (currentDescriptor.element == UNDEFINED)
-        currentDescriptor.element.compareAndSet(UNDEFINED, element);
+      // Try to complete previous write operation
+      completeWrite(currentDescriptor.writeOperation, currentExpandVersion);
 
-      final int currentSize = currentDescriptor.size;
+      operationDescriptor = new Descriptor(currentDescriptor.size + 1,
+          new WriteOperation<T>(currentDescriptor.size, element));
 
-      // Index for element
-      indexOfElement = currentSize;
+    } while (!descriptor.compareAndSet(currentDescriptor, operationDescriptor));
 
-      // Try to complete current write operation
-      if (currentDescriptor.pending)
-        completeWrite(indexOfElement - 1, version, currentDescriptor);
-
-      nextDescriptor = new Descriptor(currentSize + 1, element, true);
-    } while (!descriptor.compareAndSet(currentDescriptor, nextDescriptor));
-
-    completeWrite(indexOfElement, version, nextDescriptor);
+    // Complete current operation
+    completeWrite(operationDescriptor.writeOperation, currentExpandVersion);
 
     return true;
   }
 
-  // @Override
-  // public void add(int indexOfElement, T element) {
-  // Descriptor currentDescriptor;
-  // Descriptor nextDescriptor;
-  // int version;
-  //
-  // do {
-  // // Get current version of expanding array TODO
-  // version = expandVersion.get();
-  //
-  // currentDescriptor = descriptor.get();
-  //
-  // // Set up the first element TODO optimize it
-  // if (currentDescriptor.element == UNDEFINED)
-  // currentDescriptor.element.compareAndSet(UNDEFINED, element);
-  //
-  // final int currentSize = currentDescriptor.size;
-  //
-  // // // Try to complete current write operation
-  // // if (currentDescriptor.pending)
-  // // completeWrite(indexOfElement - 1, version, currentDescriptor);
-  //
-  // nextDescriptor = new Descriptor(currentSize + 1, element, true);
-  // } while (!descriptor.compareAndSet(currentDescriptor, nextDescriptor));
-  //
-  // completeWrite(indexOfElement, version, nextDescriptor);
-  // }
-
   @Override
   public T get(int index) {
     // Try to find a bucket to get element
-    int bucket = getIndexOfBucket(index);
-    int indexInBucket = getIndexInBucket(bucket, index);
+    final int indexOfBucket = getIndexOfBucket(index);
+    final int indexInBucket = getIndexInBucket(indexOfBucket, index);
 
-    if (array[bucket] == null) {
+    if (array[indexOfBucket] == null)
       throw new IndexOutOfBoundsException();
-    }
 
-    return array[bucket][indexInBucket];
+    return array[indexOfBucket][indexInBucket];
   }
 
   @Override
   public int size() {
     final Descriptor currentDescriptor = descriptor.get();
 
-    if (currentDescriptor.pending)
+    if (currentDescriptor.writeOperation.pending)
       return currentDescriptor.size - 1;
 
     return currentDescriptor.size;
@@ -215,34 +171,40 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   }
 
   private class Descriptor {
-    public final int          size;
-    public AtomicReference<T> element;
-    public boolean            pending;
+    public final int               size;
+    public final WriteOperation<T> writeOperation;
 
-    public Descriptor(int size, T element) {
-      this(size, element, false);
-    }
-
-    public Descriptor(int size, T element, boolean pending) {
+    public Descriptor(int size, WriteOperation<T> writeOperation) {
       this.size = size;
-      this.element = new AtomicReference<T>(element);
-      this.pending = pending;
+      this.writeOperation = writeOperation;
     }
 
     @Override
     public String toString() {
-      return "[Descriptor " + hashCode() + ", size: " + size + ", pending: " + pending + ", element: " + element + "]";
+      return "[Descriptor " + hashCode() + ", size: " + size + ", writeOperation: " + writeOperation + "]";
     }
   }
 
-  private class WriteOperation {
+  protected static class WriteOperation<T> {
     public final int indexOfElement;
-    public T         element;
+    public final T   element;
+    public boolean   pending;
 
-    public WriteOperation(int indexOfElement) {
+    /**
+     * Creates write operation for index and element<br>
+     * This operation is pending by default
+     */
+    public WriteOperation(int indexOfElement, T element) {
       this.indexOfElement = indexOfElement;
+      this.element = element;
+      this.pending = true;
     }
 
+    @Override
+    public String toString() {
+      return "[WriteOperation " + hashCode() + ", indexOfElement: " + indexOfElement + ", element: " + element + ", pending: "
+          + pending + "]";
+    }
   }
 
 }

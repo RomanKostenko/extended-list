@@ -3,7 +3,9 @@ package com.extended.list;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class ExtendedListSingleThreadTest {
+import com.extended.list.ExtendedList.WriteOperation;
+
+public class ExtendedListUnitTest {
 
   @Test
   public void testGetBucket() {
@@ -63,6 +65,58 @@ public class ExtendedListSingleThreadTest {
   public void testMoreIndexInBucket() {
     ExtendedList<?> list = new ExtendedList<Object>();
     list.getIndexInBucket(1, 6);
+  }
+
+  @Test
+  public void testAllocateBucket() {
+    ExtendedList<Integer> list = new ExtendedList<Integer>();
+    
+    // Create the first bucket for two elements
+    list.allocateBucket(0, 0);
+    Assert.assertNull(list.get(0));
+    Assert.assertNull(list.get(1));
+    try {
+      list.get(2);
+      Assert.fail();
+    } catch (IndexOutOfBoundsException e) {
+      // Okay
+    }
+
+    // Create the second bucket for four elements
+    list.allocateBucket(1, 1);
+    Assert.assertNull(list.get(2));
+    Assert.assertNull(list.get(3));
+    Assert.assertNull(list.get(4));
+    Assert.assertNull(list.get(5));
+    try {
+      list.get(6);
+      Assert.fail();
+    } catch (IndexOutOfBoundsException e) {
+      // Okay
+    }
+
+    // Try create the second bucket one more time
+    list.allocateBucket(1, 1);
+    // TODO finish after impelementation add
+  }
+
+  @Test
+  public void testCompleteWrite() {
+    ExtendedList<Integer> list = new ExtendedList<Integer>();
+    
+    WriteOperation<Integer> writeOperation = new WriteOperation<Integer>(1, 100);
+
+    // Write operation should be pending by default
+    Assert.assertTrue(writeOperation.pending);
+
+    // Try to put 100 to the second (1) cell in array
+    list.completeWrite(writeOperation, 0);
+
+    // Check added value
+    Assert.assertEquals(list.get(1), Integer.valueOf(100));
+
+    // Write operation should be finished
+    Assert.assertFalse(writeOperation.pending);
   }
 
   @Test
