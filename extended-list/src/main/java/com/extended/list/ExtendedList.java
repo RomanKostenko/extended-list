@@ -42,9 +42,9 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
    *          an index of element
    * @return counts of bits for the index of element
    */
-  protected int getIndexOfBucket(int index) {
+  protected int getIndexOfBucket(final int index) {
     // Get counts of used bits
-    int countOfUsedBits = 64 - Long.numberOfLeadingZeros(index + 2);
+    final int countOfUsedBits = 64 - Long.numberOfLeadingZeros(index + 2);
 
     // Get index of bucket
     return countOfUsedBits - 2;
@@ -77,19 +77,18 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   }
 
   @SuppressWarnings("unchecked")
-  protected void allocateBucket(int version, int bucket) {
+  protected void allocateBucket(final int version, final int bucket) {
     // Try to increase version of expanding array
     if (expandVersion.compareAndSet(version, version + 1))
       array[bucket] = (T[]) new Object[2 << bucket];
   }
 
-  protected void completeWrite(WriteOperation<T> writeOperation, int expandVersion) {
+  protected void completeWrite(final WriteOperation<T> writeOperation, final int expandVersion) {
     if (writeOperation.pending) {
       // Try to find a bucket to put element
       final int bucket = getIndexOfBucket(writeOperation.indexOfElement);
 
       // Add new bucket if it's needed
-      // TODO can be improved using park
       while (array[bucket] == null)
         allocateBucket(expandVersion, bucket);
 
@@ -104,15 +103,14 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   }
 
   @Override
-  public boolean add(T element) {
-
+  public boolean add(final T element) {
     // Initialize the first operation
     while (descriptor.get() == null)
       descriptor.compareAndSet(null, new Descriptor(0, new WriteOperation<T>(0, element)));
 
     Descriptor currentDescriptor;
     Descriptor operationDescriptor;
-    int currentExpandVersion = expandVersion.get();
+    final int currentExpandVersion = expandVersion.get();
 
     do {
       currentDescriptor = descriptor.get();
@@ -120,8 +118,7 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
       // Try to complete previous write operation
       completeWrite(currentDescriptor.writeOperation, currentExpandVersion);
 
-      operationDescriptor = new Descriptor(currentDescriptor.size + 1,
-          new WriteOperation<T>(currentDescriptor.size, element));
+      operationDescriptor = new Descriptor(currentDescriptor.size + 1, new WriteOperation<T>(currentDescriptor.size, element));
 
     } while (!descriptor.compareAndSet(currentDescriptor, operationDescriptor));
 
@@ -132,15 +129,35 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
   }
 
   @Override
-  public T get(int index) {
-    // Try to find a bucket to get element
+  public T set(final int index, final T element) {
+    boundsValidation(index);
+
     final int indexOfBucket = getIndexOfBucket(index);
     final int indexInBucket = getIndexInBucket(indexOfBucket, index);
 
-    if (array[indexOfBucket] == null)
-      throw new IndexOutOfBoundsException();
+    final T oldValue = array[indexOfBucket][indexInBucket];
+
+    array[indexOfBucket][indexInBucket] = element;
+
+    return oldValue;
+  }
+
+  @Override
+  public T get(final int index) {
+    boundsValidation(index);
+
+    final int indexOfBucket = getIndexOfBucket(index);
+    final int indexInBucket = getIndexInBucket(indexOfBucket, index);
 
     return array[indexOfBucket][indexInBucket];
+  }
+
+  private void boundsValidation(final int index) {
+    if (descriptor.get() == null)
+      throw new IndexOutOfBoundsException("Index: " + index + ", Size: 0");
+
+    if (index >= size())
+      throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size());
   }
 
   @Override
@@ -155,10 +172,10 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
+    final StringBuilder sb = new StringBuilder();
     for (int i = 0; i < ROOT_SIZE; i++) {
       if (array[i] == null)
-        break;
+        continue;
 
       sb.append(Arrays.asList(array[i]));
       sb.append("\n");
@@ -174,7 +191,7 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
     public final int               size;
     public final WriteOperation<T> writeOperation;
 
-    public Descriptor(int size, WriteOperation<T> writeOperation) {
+    public Descriptor(final int size, final WriteOperation<T> writeOperation) {
       this.size = size;
       this.writeOperation = writeOperation;
     }
@@ -194,7 +211,7 @@ public class ExtendedList<T> extends AbstractList<T> implements List<T> {
      * Creates write operation for index and element<br>
      * This operation is pending by default
      */
-    public WriteOperation(int indexOfElement, T element) {
+    public WriteOperation(final int indexOfElement, final T element) {
       this.indexOfElement = indexOfElement;
       this.element = element;
       this.pending = true;

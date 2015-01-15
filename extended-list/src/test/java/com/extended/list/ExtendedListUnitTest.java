@@ -1,5 +1,7 @@
 package com.extended.list;
 
+import java.util.List;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -9,7 +11,7 @@ public class ExtendedListUnitTest {
 
   @Test
   public void testGetBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
 
     Assert.assertEquals(0, list.getIndexOfBucket(0));
     Assert.assertEquals(0, list.getIndexOfBucket(1));
@@ -26,7 +28,7 @@ public class ExtendedListUnitTest {
 
   @Test
   public void testGetIndexInBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
 
     Assert.assertEquals(0, list.getIndexInBucket(0, 0));
     Assert.assertEquals(0, list.getIndexInBucket(0, 0));
@@ -45,66 +47,68 @@ public class ExtendedListUnitTest {
 
   @Test(expectedExceptions = AssertionError.class)
   public void testIndexInLessBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
     list.getIndexInBucket(0, 5);
   }
 
   @Test(expectedExceptions = AssertionError.class)
   public void testIndexInMoreBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
     list.getIndexInBucket(2, 5);
   }
 
   @Test(expectedExceptions = AssertionError.class)
   public void testLessIndexInBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
     list.getIndexInBucket(1, 1);
   }
 
   @Test(expectedExceptions = AssertionError.class)
   public void testMoreIndexInBucket() {
-    ExtendedList<?> list = new ExtendedList<Object>();
+    final ExtendedList<?> list = new ExtendedList<Object>();
     list.getIndexInBucket(1, 6);
   }
 
   @Test
   public void testAllocateBucket() {
-    ExtendedList<Integer> list = new ExtendedList<Integer>();
-    
-    // Create the first bucket for two elements
-    list.allocateBucket(0, 0);
-    Assert.assertNull(list.get(0));
-    Assert.assertNull(list.get(1));
+    final ExtendedList<Integer> list = new ExtendedList<Integer>();
+
+    // Create the first bucket for four elements
+    list.add(0);
+    list.add(1);
+
+    Assert.assertEquals(list.get(0), Integer.valueOf(0));
+    Assert.assertEquals(list.get(1), Integer.valueOf(1));
+
     try {
       list.get(2);
       Assert.fail();
-    } catch (IndexOutOfBoundsException e) {
+    } catch (final IndexOutOfBoundsException e) {
       // Okay
     }
 
     // Create the second bucket for four elements
-    list.allocateBucket(1, 1);
-    Assert.assertNull(list.get(2));
-    Assert.assertNull(list.get(3));
-    Assert.assertNull(list.get(4));
-    Assert.assertNull(list.get(5));
-    try {
-      list.get(6);
-      Assert.fail();
-    } catch (IndexOutOfBoundsException e) {
-      // Okay
-    }
+    list.add(2);
+    Assert.assertEquals(list.get(2), Integer.valueOf(2));
 
     // Try create the second bucket one more time
     list.allocateBucket(1, 1);
-    // TODO finish after impelementation add
+
+    // Value shouldn't be override
+    Assert.assertEquals(list.get(2), Integer.valueOf(2));
+
+    System.out.println(list);
   }
 
   @Test
   public void testCompleteWrite() {
-    ExtendedList<Integer> list = new ExtendedList<Integer>();
-    
-    WriteOperation<Integer> writeOperation = new WriteOperation<Integer>(1, 100);
+    final ExtendedList<Integer> list = new ExtendedList<Integer>();
+
+    // Create descriptor with the first bucket for two elements
+    list.add(0);
+    list.add(1);
+
+    final WriteOperation<Integer> writeOperation = new WriteOperation<Integer>(1, 100);
 
     // Write operation should be pending by default
     Assert.assertTrue(writeOperation.pending);
@@ -121,13 +125,10 @@ public class ExtendedListUnitTest {
 
   @Test
   public void testAddGetSize() {
-    ExtendedList<Integer> list = new ExtendedList<Integer>();
+    final List<Integer> list = new ExtendedList<Integer>();
 
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++)
       list.add(i);
-    }
-
-    System.out.println(list);
 
     Assert.assertEquals(list.size(), 30);
     Assert.assertEquals(list.get(0), Integer.valueOf(0));
@@ -135,16 +136,65 @@ public class ExtendedListUnitTest {
     Assert.assertEquals(list.get(2), Integer.valueOf(2));
     Assert.assertEquals(list.get(15), Integer.valueOf(15));
     Assert.assertEquals(list.get(29), Integer.valueOf(29));
+
+    System.out.println(list);
   }
 
   @Test(expectedExceptions = IndexOutOfBoundsException.class)
   public void testGetIndexOutOfBounds() {
-    ExtendedList<Integer> list = new ExtendedList<Integer>();
+    final List<Integer> list = new ExtendedList<Integer>();
 
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++)
       list.add(i);
-    }
 
     list.get(30);
+  }
+
+  @Test
+  public void testAddFirstElement() {
+    final List<Integer> list = new ExtendedList<Integer>();
+
+    list.add(9);
+
+    Assert.assertEquals(list.size(), 1);
+    Assert.assertEquals(list.get(0), Integer.valueOf(9));
+
+    System.out.println(list);
+  }
+
+  @Test
+  public void testSet() {
+    final List<Integer> list = new ExtendedList<Integer>();
+
+    for (int i = 0; i < 30; i++)
+      list.add(i);
+
+    Assert.assertEquals(list.size(), 30);
+    Assert.assertEquals(list.get(15), Integer.valueOf(15));
+
+    final Integer oldValue = list.set(15, 100);
+
+    Assert.assertEquals(list.size(), 30);
+    Assert.assertEquals(oldValue, Integer.valueOf(15));
+    Assert.assertEquals(list.get(15), Integer.valueOf(100));
+
+    System.out.println(list);
+  }
+
+  @Test(expectedExceptions = IndexOutOfBoundsException.class)
+  public void testSetIndexOutOfBounds() {
+    final List<Integer> list = new ExtendedList<Integer>();
+
+    list.add(0);
+    list.add(1);
+    list.add(2);
+
+    list.set(3, 3);
+  }
+
+  @Test(expectedExceptions = IndexOutOfBoundsException.class)
+  public void testSetToEmptyList() {
+    final List<Integer> list = new ExtendedList<Integer>();
+    list.set(0, 0);
   }
 }
