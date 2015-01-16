@@ -7,10 +7,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.junit.Ignore;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
+@Ignore
 public class ExtendedListPerformanceTest {
 
   private static final int      NUMBERS          = 100000;
@@ -24,13 +26,13 @@ public class ExtendedListPerformanceTest {
 
   @Test(invocationCount = INVOCATION_COUNT)
   public void runTest() throws Exception {
-    long start = System.currentTimeMillis();
-    List<Future<Void>> futures = new ArrayList<Future<Void>>();
+    final long start = System.currentTimeMillis();
+    final List<Future<Void>> futures = new ArrayList<Future<Void>>();
 
     for (int i = 0; i < THREADS; i++)
       futures.add(executorService.submit(new ListFiller()));
 
-    for (Future<Void> future : futures)
+    for (final Future<Void> future : futures)
       future.get();
 
     agregator = agregator + (System.currentTimeMillis() - start);
@@ -45,6 +47,7 @@ public class ExtendedListPerformanceTest {
 
   private final class ListFiller implements Callable<Void> {
 
+    @Override
     public Void call() throws Exception {
       for (int i = 0; i < NUMBERS; i++)
         list.add(i);
