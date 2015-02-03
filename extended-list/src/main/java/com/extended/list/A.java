@@ -10,4 +10,9 @@ public class A {
   public int getI() {
     return i;
   }
+
+  @Override
+  public String toString() {
+    return String.valueOf(i);
+  }
 }

@@ -92,7 +92,7 @@ public class ExtendedListUnitTest {
     Assert.assertEquals(list.get(2), Integer.valueOf(2));
 
     // Try create the second bucket one more time
-    list.allocateBucket(1, 1);
+    list.allocateBucket(1);
 
     // Value shouldn't be override
     Assert.assertEquals(list.get(2), Integer.valueOf(2));
@@ -114,7 +114,7 @@ public class ExtendedListUnitTest {
     Assert.assertTrue(writeOperation.pending);
 
     // Try to put 100 to the second (1) cell in array
-    list.completeWrite(writeOperation, 0);
+    list.completeWrite(writeOperation);
 
     // Check added value
     Assert.assertEquals(list.get(1), Integer.valueOf(100));
@@ -196,5 +196,61 @@ public class ExtendedListUnitTest {
   public void testSetToEmptyList() {
     final List<Integer> list = new ExtendedList<Integer>();
     list.set(0, 0);
+  }
+  
+  @Test(expectedExceptions = IndexOutOfBoundsException.class)
+  public void testRemoveNull() {
+    final List<Integer> list = new ExtendedList<Integer>();
+    list.remove(0);
+  }
+
+  @Test
+  public void testRemove() {
+    final List<Integer> list = new ExtendedList<Integer>();
+    list.add(0);
+    list.add(1);
+    list.add(2);
+    Assert.assertEquals(list.size(), 3);
+
+    // Remove last element, index doesn't influence
+    Assert.assertEquals(list.remove(0), Integer.valueOf(2));
+    Assert.assertEquals(list.size(), 2);
+    Assert.assertEquals(list.get(1), Integer.valueOf(1));
+    Assert.assertEquals(list.get(0), Integer.valueOf(0));
+
+    Assert.assertEquals(list.remove(0), Integer.valueOf(1));
+    Assert.assertEquals(list.size(), 1);
+    Assert.assertEquals(list.get(0), Integer.valueOf(0));
+
+    list.add(4);
+    list.add(4);
+    Assert.assertEquals(list.size(), 3);
+
+    Assert.assertEquals(list.remove(0), Integer.valueOf(4));
+    Assert.assertEquals(list.size(), 2);
+    Assert.assertEquals(list.get(1), Integer.valueOf(4));
+    Assert.assertEquals(list.get(0), Integer.valueOf(0));
+
+    Assert.assertEquals(list.remove(0), Integer.valueOf(4));
+    Assert.assertEquals(list.size(), 1);
+    Assert.assertEquals(list.get(0), Integer.valueOf(0));
+
+    Assert.assertEquals(list.remove(0), Integer.valueOf(0));
+    Assert.assertEquals(list.size(), 0);
+
+    list.add(5);
+    Assert.assertEquals(list.size(), 1);
+  }
+  
+  @Test(expectedExceptions = IndexOutOfBoundsException.class)
+  public void testRemoveWhenSizeZerro() {
+    final List<Integer> list = new ExtendedList<Integer>();
+    list.add(0);
+    list.add(1);
+    list.add(2);
+    list.remove(0);
+    list.remove(0);
+    list.remove(0);
+    list.remove(0);
   }
 }
