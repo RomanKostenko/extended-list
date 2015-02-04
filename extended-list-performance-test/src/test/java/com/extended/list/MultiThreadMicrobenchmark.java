@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
@@ -29,15 +30,19 @@ public class MultiThreadMicrobenchmark {
 
   private final Vector<A>       vectorForGet               = new Vector<A>();
   private final Vector<A>       vectorForSet               = new Vector<A>();
+  private Vector<A>             vectorForRemove;
 
   private final List<A>         synchronizedListForGet     = Collections.synchronizedList(new ArrayList<A>());
   private final List<A>         synchronizedListForSet     = Collections.synchronizedList(new ArrayList<A>());
+  private List<A>               synchronizedListForRemove;
 
   private final List<A>         copyOnWriteArrayListForGet = new CopyOnWriteArrayList<A>();
   private final List<A>         copyOnWriteArrayListForSet = new CopyOnWriteArrayList<A>();
+  private List<A>               copyOnWriteArrayListForRemove;
 
   private final ExtendedList<A> extendedListForGet         = new ExtendedList<A>();
   private final ExtendedList<A> extendedListForSet         = new ExtendedList<A>();
+  private ExtendedList<A>       extendedListForRemove;
 
   @Setup
   public void setUp() {
@@ -57,6 +62,21 @@ public class MultiThreadMicrobenchmark {
 
       copyOnWriteArrayListForGet.add(BUFFER[i]);
       copyOnWriteArrayListForSet.add(BUFFER[i]);
+    }
+  }
+
+  @Setup(Level.Invocation)
+  public void setUpEachTime() {
+    vectorForRemove = new Vector<A>();
+    synchronizedListForRemove = Collections.synchronizedList(new ArrayList<A>());
+    copyOnWriteArrayListForRemove = new CopyOnWriteArrayList<A>();
+    extendedListForRemove = new ExtendedList<A>();
+
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+      vectorForRemove.add(BUFFER[i]);
+      synchronizedListForRemove.add(BUFFER[i]);
+      copyOnWriteArrayListForRemove.add(BUFFER[i]);
+      extendedListForRemove.add(BUFFER[i]);
     }
   }
 
@@ -176,6 +196,46 @@ public class MultiThreadMicrobenchmark {
 
     for (int i = 0; i < sizeOfList; i++)
       result += extendedListForGet.get(i).getI();
+
+    return result;
+  }
+
+  @Benchmark
+  public long removeVector() {
+    long result = 0;
+
+    for (int i = BUFFER_SIZE - 1; i >= 0; i--)
+      result += vectorForRemove.remove(i).getI();
+
+    return result;
+  }
+
+  @Benchmark
+  public long removeSynchronizedList() {
+    long result = 0;
+
+    for (int i = BUFFER_SIZE - 1; i >= 0; i--)
+      result += synchronizedListForRemove.remove(i).getI();
+
+    return result;
+  }
+
+  @Benchmark
+  public long removeCopyOnWriteArrayList() {
+    long result = 0;
+
+    for (int i = BUFFER_SIZE - 1; i >= 0; i--)
+      result += copyOnWriteArrayListForRemove.remove(i).getI();
+
+    return result;
+  }
+
+  @Benchmark
+  public long removeExtendedList() {
+    long result = 0;
+
+    for (int i = BUFFER_SIZE - 1; i >= 0; i--)
+      result += extendedListForRemove.remove(i).getI();
 
     return result;
   }

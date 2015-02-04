@@ -197,7 +197,7 @@ public class ExtendedListUnitTest {
     final List<Integer> list = new ExtendedList<Integer>();
     list.set(0, 0);
   }
-  
+
   @Test(expectedExceptions = IndexOutOfBoundsException.class)
   public void testRemoveNull() {
     final List<Integer> list = new ExtendedList<Integer>();
@@ -241,7 +241,7 @@ public class ExtendedListUnitTest {
     list.add(5);
     Assert.assertEquals(list.size(), 1);
   }
-  
+
   @Test(expectedExceptions = IndexOutOfBoundsException.class)
   public void testRemoveWhenSizeZerro() {
     final List<Integer> list = new ExtendedList<Integer>();

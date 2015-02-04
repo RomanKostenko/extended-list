@@ -13,10 +13,10 @@ public class RunMicrobenchmarks {
 
     new Runner(opt).run();
 
-    // final Options optMulti = new OptionsBuilder().include(MultiThreadMicrobenchmark.class.getSimpleName()).warmupIterations(3)
-    // .measurementIterations(3).threads(8).forks(1).build();
-    //
-    // new Runner(optMulti).run();
+    final Options optMulti = new OptionsBuilder().include(MultiThreadMicrobenchmark.class.getSimpleName()).warmupIterations(3)
+        .measurementIterations(3).threads(8).forks(1).build();
+
+    new Runner(optMulti).run();
   }
 
 }
